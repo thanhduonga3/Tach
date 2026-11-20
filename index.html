@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tách Câu & Copy Nhanh</title>
+    <!-- Tải Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tải Font Inter hỗ trợ tiếng Việt sắc nét -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Tải Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Tùy chỉnh thanh cuộn mượt mà */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        /* Hiệu ứng xuất hiện nhẹ cho từng thẻ câu */
+        @keyframes fadeInSlide {
+            from {
+                opacity: 0;
+                transform: translateY(6px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .sentence-card-anim {
+            animation: fadeInSlide 0.2s ease-out forwards;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col selection:bg-indigo-100 selection:text-indigo-900">
+
+    <!-- Header siêu gọn nhẹ tích hợp bộ chọn chế độ tách -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-20 shadow-2xs">
+        <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 min-h-[46px] py-1.5 flex flex-wrap items-center justify-between gap-2">
+            <!-- Tên app ngắn gọn -->
+            <div class="flex items-center gap-2 shrink-0">
+                <div class="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center text-white shadow-2xs">
+                    <i data-lucide="scissors" class="w-3.5 h-3.5"></i>
+                </div>
+                <h1 class="text-sm sm:text-base font-bold text-slate-900 tracking-tight">Tách Câu & Copy</h1>
+            </div>
+
+            <!-- Bộ chọn chế độ tách & tùy chọn ngay trên header -->
+            <div class="flex flex-wrap items-center gap-2 sm:gap-3">
+                <!-- Segmented Control chọn chế độ tách -->
+                <div class="inline-flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200/80" id="splitModeGroup">
+                    <label class="cursor-pointer">
+                        <input type="radio" name="splitMode" value="both" checked class="peer sr-only">
+                        <span class="block px-2 sm:px-2.5 py-1 rounded-md text-[11px] sm:text-xs font-medium text-slate-600 peer-checked:bg-white peer-checked:text-indigo-700 peer-checked:font-semibold peer-checked:shadow-2xs transition-all">
+                            Chấm & Xuống dòng
+                        </span>
+                    </label>
+                    <label class="cursor-pointer">
+                        <input type="radio" name="splitMode" value="newline" class="peer sr-only">
+                        <span class="block px-2 sm:px-2.5 py-1 rounded-md text-[11px] sm:text-xs font-medium text-slate-600 peer-checked:bg-white peer-checked:text-indigo-700 peer-checked:font-semibold peer-checked:shadow-2xs transition-all">
+                            Chỉ xuống dòng
+                        </span>
+                    </label>
+                    <label class="cursor-pointer">
+                        <input type="radio" name="splitMode" value="period" class="peer sr-only">
+                        <span class="block px-2 sm:px-2.5 py-1 rounded-md text-[11px] sm:text-xs font-medium text-slate-600 peer-checked:bg-white peer-checked:text-indigo-700 peer-checked:font-semibold peer-checked:shadow-2xs transition-all">
+                            Chỉ dấu chấm (.)
+                        </span>
+                    </label>
+                </div>
+
+                <!-- Tùy chọn giữ dấu chấm cuối câu -->
+                <label class="inline-flex items-center gap-1.5 cursor-pointer select-none px-2 py-1 rounded-lg hover:bg-slate-100 transition-colors" title="Giữ lại dấu chấm (.) ở cuối mỗi câu sau khi tách">
+                    <input type="checkbox" id="optKeepPeriod" checked class="w-3.5 h-3.5 rounded text-indigo-600 border-slate-300 focus:ring-indigo-500 cursor-pointer">
+                    <span class="text-[11px] sm:text-xs font-medium text-slate-700">Giữ dấu chấm</span>
+                </label>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+
+            <!-- Cột Trái: Khung nhập văn bản (5 cột trên màn hình lớn) -->
+            <section class="lg:col-span-5 flex flex-col gap-3 lg:sticky lg:top-16">
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+                    <!-- Thanh công cụ khung nhập -->
+                    <div class="px-3.5 py-2.5 bg-slate-50/80 border-b border-slate-200 flex items-center justify-between gap-2">
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="file-text" class="w-4 h-4 text-indigo-600"></i>
+                            <span class="font-semibold text-sm text-slate-800">Văn bản gốc</span>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <button id="btnPaste" type="button" title="Dán văn bản từ bộ nhớ tạm" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-indigo-700 bg-indigo-50 border border-indigo-200/80 hover:bg-indigo-100 rounded-lg transition-all cursor-pointer shadow-2xs active:scale-95">
+                                <i data-lucide="clipboard-paste" class="w-3.5 h-3.5"></i>
+                                <span>Dán</span>
+                            </button>
+                            <button id="btnClear" type="button" title="Xóa toàn bộ văn bản và kết quả đã lưu" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200/80 rounded-lg transition-all cursor-pointer disabled:opacity-40 disabled:pointer-events-none active:scale-95">
+                                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                <span>Xóa tất cả</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Vùng nhập Textarea (mặc định trống hoàn toàn) -->
+                    <div class="relative">
+                        <textarea
+                            id="sourceInput"
+                            rows="12"
+                            placeholder="Nhập hoặc dán đoạn văn bản cần tách vào đây..."
+                            class="w-full p-3.5 sm:p-4 text-sm sm:text-base text-slate-800 placeholder-slate-400 bg-white focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500/30 resize-y min-h-[260px] lg:min-h-[380px] leading-relaxed"
+                        ></textarea>
+                    </div>
+
+                    <!-- Thanh thống kê ký tự, số câu & trạng thái tự động lưu -->
+                    <div class="px-3.5 py-2 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">
+                        <div class="flex items-center gap-2.5">
+                            <span>Ký tự: <strong id="charCount" class="text-slate-800 font-semibold">0</strong></span>
+                            <span class="text-slate-300">|</span>
+                            <span>Số câu: <strong id="sentenceCountBadge" class="text-indigo-600 font-bold">0</strong></span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span id="copiedProgressText" class="text-emerald-600 font-semibold hidden">Đã copy: 0/0</span>
+                            <span id="autoSaveIndicator" class="hidden sm:inline-flex items-center gap-1 text-[11px] text-slate-400" title="Tự động lưu trên trình duyệt">
+                                <i data-lucide="hard-drive" class="w-3 h-3"></i>
+                                <span>Đã lưu</span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Cột Phải: Danh sách kết quả đã tách (7 cột trên màn hình lớn) -->
+            <section class="lg:col-span-7 flex flex-col gap-3">
+                <!-- Thanh tiêu đề kết quả -->
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm px-4 py-2.5 flex flex-wrap items-center justify-between gap-2">
+                    <div class="flex items-center gap-2">
+                        <span class="font-bold text-sm sm:text-base text-slate-900">Danh sách câu đã tách</span>
+                        <span id="resultCountPill" class="px-2.5 py-0.5 text-xs font-bold bg-indigo-100 text-indigo-700 rounded-full">0 câu</span>
+                    </div>
+
+                    <div id="bulkActions" class="hidden items-center gap-2">
+                        <button id="btnResetCopied" type="button" title="Bỏ đánh dấu đã copy trên các thẻ" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors cursor-pointer">
+                            <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+                            <span>Bỏ đánh dấu</span>
+                        </button>
+                        <button id="btnCopyAll" type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-slate-800 hover:bg-slate-900 rounded-xl transition-all cursor-pointer shadow-2xs">
+                            <i data-lucide="copy-check" class="w-3.5 h-3.5"></i>
+                            <span id="btnCopyAllText">Copy tất cả</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Vùng chứa danh sách các thẻ câu -->
+                <div id="resultsContainer" class="flex flex-col gap-2.5">
+                    <!-- Trạng thái trống ban đầu -->
+                    <div id="emptyState" class="bg-white rounded-2xl border-2 border-dashed border-slate-200 p-10 sm:p-14 text-center flex flex-col items-center justify-center">
+                        <div class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mb-3">
+                            <i data-lucide="list-ordered" class="w-6 h-6"></i>
+                        </div>
+                        <h3 class="text-sm sm:text-base font-semibold text-slate-800 mb-1">Chưa có nội dung để tách</h3>
+                        <p class="text-xs sm:text-sm text-slate-500 max-w-md leading-relaxed">
+                            Nhập hoặc dán văn bản vào khung bên trái. Các câu sẽ được tách tự động kèm nút <strong>Copy</strong> nhanh cho từng đoạn.
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+    </main>
+
+    <!-- Toast Notification (Thông báo nổi góc dưới màn hình) -->
+    <div id="toast" class="fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none max-w-[90vw]">
+        <div class="bg-slate-900 text-white px-4 py-3 rounded-xl shadow-lg flex items-center gap-2.5 text-xs sm:text-sm font-medium">
+            <i id="toastIcon" data-lucide="info" class="w-4 h-4 text-indigo-400 shrink-0"></i>
+            <span id="toastMessage">Thông báo</span>
+        </div>
+    </div>
+
+    <script>
+        // Khởi tạo icons Lucide
+        lucide.createIcons();
+
+        // Khóa lưu trữ bền vững trong localStorage
+        const STORAGE_KEY = 'tach_cau_copy_nhanh_state_v1';
+
+        // Tham chiếu các phần tử DOM
+        const sourceInput = document.getElementById('sourceInput');
+        const btnClear = document.getElementById('btnClear');
+        const btnPaste = document.getElementById('btnPaste');
+        const btnCopyAll = document.getElementById('btnCopyAll');
+        const btnCopyAllText = document.getElementById('btnCopyAllText');
+        const btnResetCopied = document.getElementById('btnResetCopied');
+
+        const charCount = document.getElementById('charCount');
+        const sentenceCountBadge = document.getElementById('sentenceCountBadge');
+        const resultCountPill = document.getElementById('resultCountPill');
+        const copiedProgressText = document.getElementById('copiedProgressText');
+        const autoSaveIndicator = document.getElementById('autoSaveIndicator');
+        const bulkActions = document.getElementById('bulkActions');
+        const resultsContainer = document.getElementById('resultsContainer');
+        const emptyState = document.getElementById('emptyState');
+
+        const splitModeRadios = document.querySelectorAll('input[name="splitMode"]');
+        const optKeepPeriod = document.getElementById('optKeepPeriod');
+
+        const toast = document.getElementById('toast');
+        const toastMessage = document.getElementById('toastMessage');
+
+        // Trạng thái ứng dụng
+        let currentSentences = [];
+        let copiedSet = new Set(); // Lưu chỉ số (index) các câu đã được copy
+        let toastTimeout = null;
+
+        /**
+         * Lưu toàn bộ trạng thái hiện tại vào localStorage
+         */
+        function saveStateToStorage() {
+            try {
+                const inputText = sourceInput.value;
+                const modeEl = document.querySelector('input[name="splitMode"]:checked');
+                const splitMode = modeEl ? modeEl.value : 'both';
+                const keepPeriod = optKeepPeriod.checked;
+
+                // Nếu văn bản trống hoàn toàn -> xóa sạch dữ liệu đã lưu trong localStorage
+                if (inputText.trim() === '' && inputText.length === 0) {
+                    localStorage.removeItem(STORAGE_KEY);
+                    autoSaveIndicator.classList.add('hidden');
+                    return;
+                }
+
+                const state = {
+                    inputText: inputText,
+                    splitMode: splitMode,
+                    keepPeriod: keepPeriod,
+                    copiedIndices: Array.from(copiedSet),
+                    updatedAt: Date.now()
+                };
+
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+                autoSaveIndicator.classList.remove('hidden');
+            } catch (err) {
+                // Bỏ qua lỗi nếu trình duyệt chặn localStorage (chế độ ẩn danh nghiêm ngặt)
+            }
+        }
+
+        /**
+         * Khôi phục dữ liệu từ localStorage khi mở hoặc tải lại trang
+         */
+        function loadStateFromStorage() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (!raw) return;
+
+                const state = JSON.parse(raw);
+                if (!state || typeof state !== 'object') return;
+
+                if (typeof state.inputText === 'string') {
+                    sourceInput.value = state.inputText;
+                }
+
+                if (state.splitMode) {
+                    const targetRadio = document.querySelector(`input[name="splitMode"][value="${state.splitMode}"]`);
+                    if (targetRadio) targetRadio.checked = true;
+                }
+
+                if (typeof state.keepPeriod === 'boolean') {
+                    optKeepPeriod.checked = state.keepPeriod;
+                }
+
+                if (Array.isArray(state.copiedIndices)) {
+                    copiedSet = new Set(state.copiedIndices.filter(idx => Number.isInteger(idx) && idx >= 0));
+                }
+
+                if (sourceInput.value.length > 0) {
+                    autoSaveIndicator.classList.remove('hidden');
+                }
+            } catch (err) {
+                localStorage.removeItem(STORAGE_KEY);
+            }
+        }
+
+        /**
+         * Xóa sạch dữ liệu trong localStorage
+         */
+        function clearStorageState() {
+            try {
+                localStorage.removeItem(STORAGE_KEY);
+                autoSaveIndicator.classList.add('hidden');
+            } catch (err) {
+                // Bỏ qua
+            }
+        }
+
+        /**
+         * Hiển thị thông báo nhanh (Toast) thay thế hoàn toàn alert()
+         */
+        function showToast(message, duration = 2600) {
+            toastMessage.textContent = message;
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+
+            clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, duration);
+        }
+
+        /**
+         * Hàm sao chép văn bản vào Clipboard hỗ trợ đa môi trường (Clipboard API + Fallback)
+         */
+        async function copyTextToClipboard(text) {
+            try {
+                if (navigator.clipboard && window.isSecureContext) {
+                    await navigator.clipboard.writeText(text);
+                    return true;
+                }
+            } catch (err) {
+                // Bỏ qua lỗi để chạy fallback bên dưới
+            }
+
+            // Fallback bằng textarea ẩn và execCommand('copy')
+            try {
+                const textArea = document.createElement('textarea');
+                textArea.value = text;
+                textArea.style.position = 'fixed';
+                textArea.style.left = '-999999px';
+                textArea.style.top = '-999999px';
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                const successful = document.execCommand('copy');
+                document.body.removeChild(textArea);
+                return successful;
+            } catch (err) {
+                return false;
+            }
+        }
+
+        /**
+         * Thuật toán tách câu thông minh
+         * - Bảo vệ dấu chấm lửng (...) và số thập phân (ví dụ 3.14) khi tách theo dấu chấm
+         * - Hỗ trợ 3 chế độ: cả 2, chỉ xuống dòng, chỉ dấu chấm
+         */
+        function parseSentences(rawText) {
+            if (!rawText || rawText.trim() === '') {
+                return [];
+            }
+
+            const modeEl = document.querySelector('input[name="splitMode"]:checked');
+            const mode = modeEl ? modeEl.value : 'both';
+            const keepPeriod = optKeepPeriod.checked;
+
+            let workingText = rawText;
+            const ELLIPSIS_TOKEN = '___ELLIPSIS_TOKEN___';
+            const DECIMAL_TOKEN = '___DECIMAL_TOKEN___';
+
+            if (mode === 'both' || mode === 'period') {
+                // Bảo vệ dấu chấm lửng (2 dấu chấm trở lên liền nhau)
+                workingText = workingText.replace(/\.{2,}/g, (match) => {
+                    return ELLIPSIS_TOKEN + match.length + '___';
+                });
+
+                // Bảo vệ dấu chấm nằm giữa hai chữ số (số thập phân như 12.5, 3.14)
+                workingText = workingText.replace(/(\d)\.(\d)/g, `$1${DECIMAL_TOKEN}$2`);
+            }
+
+            let rawSegments = [];
+
+            if (mode === 'newline') {
+                rawSegments = workingText.split(/\r?\n/);
+            } else if (mode === 'period') {
+                rawSegments = workingText.split(/(?<=\.)/);
+            } else {
+                // Chế độ 'both': Tách theo xuống dòng trước, sau đó tách tiếp theo dấu chấm
+                const lines = workingText.split(/\r?\n/);
+                lines.forEach(line => {
+                    const parts = line.split(/(?<=\.)/);
+                    rawSegments.push(...parts);
+                });
+            }
+
+            // Khôi phục token và làm sạch từng câu
+            const processed = [];
+            for (let seg of rawSegments) {
+                seg = seg.replace(new RegExp(DECIMAL_TOKEN, 'g'), '.');
+                seg = seg.replace(/___ELLIPSIS_TOKEN___(\d+)___/g, (_, count) => '.'.repeat(Number(count)));
+                seg = seg.trim();
+
+                // Xử lý tùy chọn giữ hoặc bỏ dấu chấm đơn ở cuối câu
+                if (!keepPeriod) {
+                    seg = seg.replace(/(?<!\.)\.$/, '').trim();
+                }
+
+                if (seg === '' || seg === '.') continue;
+                processed.push(seg);
+            }
+
+            return processed;
+        }
+
+        /**
+         * Cập nhật thống kê tiến độ đã copy
+         */
+        function updateProgressUI() {
+            const total = currentSentences.length;
+            const copiedCount = copiedSet.size;
+
+            if (total > 0 && copiedCount > 0) {
+                copiedProgressText.textContent = `Đã copy: ${copiedCount}/${total}`;
+                copiedProgressText.classList.remove('hidden');
+            } else {
+                copiedProgressText.classList.add('hidden');
+            }
+        }
+
+        /**
+         * Render danh sách các câu đã tách ra giao diện
+         */
+        function renderSentences() {
+            const rawText = sourceInput.value;
+            charCount.textContent = rawText.length.toLocaleString('vi-VN');
+
+            // Cập nhật trạng thái nút Xóa tất cả
+            btnClear.disabled = rawText.length === 0;
+
+            // Tách câu
+            currentSentences = parseSentences(rawText);
+            const total = currentSentences.length;
+
+            sentenceCountBadge.textContent = total;
+            resultCountPill.textContent = `${total} câu`;
+
+            // Xóa sạch vùng hiển thị cũ
+            resultsContainer.innerHTML = '';
+
+            // Nếu không có văn bản hoặc không tách được câu nào -> hiển thị trạng thái trống
+            if (total === 0) {
+                copiedSet.clear();
+                bulkActions.classList.add('hidden');
+                bulkActions.classList.remove('flex');
+                resultsContainer.appendChild(emptyState);
+                updateProgressUI();
+                return;
+            }
+
+            // Hiển thị thanh hành động hàng loạt
+            bulkActions.classList.remove('hidden');
+            bulkActions.classList.add('flex');
+
+            // Lọc lại copiedSet nếu số câu bị giảm đi khi người dùng sửa văn bản
+            for (let idx of Array.from(copiedSet)) {
+                if (idx >= total) copiedSet.delete(idx);
+            }
+            updateProgressUI();
+
+            // Tạo fragment để render hiệu năng cao
+            const fragment = document.createDocumentFragment();
+
+            currentSentences.forEach((sentence, index) => {
+                const isCopiedPreviously = copiedSet.has(index);
+
+                // Thẻ bao ngoài từng câu
+                const card = document.createElement('div');
+                card.className = `sentence-card-anim group relative flex items-start sm:items-center justify-between gap-3 p-3 sm:p-3.5 rounded-2xl border transition-all duration-200 ${
+                    isCopiedPreviously
+                        ? 'bg-emerald-50/50 border-emerald-200/90'
+                        : 'bg-white border-slate-200 hover:border-indigo-300 hover:shadow-2xs'
+                }`;
+                card.dataset.index = index;
+
+                // Phần bên trái: Số thứ tự + Nội dung câu + Badge đã sao chép
+                const leftContent = document.createElement('div');
+                leftContent.className = 'flex items-start gap-2.5 flex-1 min-w-0';
+
+                const numberBadge = document.createElement('span');
+                numberBadge.className = `shrink-0 w-6 h-6 rounded-lg text-xs font-bold flex items-center justify-center mt-0.5 transition-colors ${
+                    isCopiedPreviously
+                        ? 'bg-emerald-100 text-emerald-700'
+                        : 'bg-slate-100 text-slate-600 group-hover:bg-indigo-50 group-hover:text-indigo-600'
+                }`;
+                numberBadge.textContent = index + 1;
+
+                const textWrapper = document.createElement('div');
+                textWrapper.className = 'flex-1 min-w-0';
+
+                const textEl = document.createElement('p');
+                textEl.className = `text-sm sm:text-[15px] leading-relaxed break-words select-all ${
+                    isCopiedPreviously ? 'text-slate-600' : 'text-slate-800 font-normal'
+                }`;
+                textEl.textContent = sentence;
+
+                textWrapper.appendChild(textEl);
+
+                // Nhãn nhỏ báo hiệu câu này đã từng được copy
+                const statusBadge = document.createElement('span');
+                statusBadge.className = `copied-badge inline-flex items-center gap-1 mt-1 text-[11px] font-medium text-emerald-600 ${
+                    isCopiedPreviously ? '' : 'hidden'
+                }`;
+                statusBadge.innerHTML = `<svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> Đã sao chép`;
+                textWrapper.appendChild(statusBadge);
+
+                leftContent.appendChild(numberBadge);
+                leftContent.appendChild(textWrapper);
+
+                // Nút Copy nhanh bên phải
+                const copyBtn = document.createElement('button');
+                copyBtn.type = 'button';
+                copyBtn.className = `shrink-0 inline-flex items-center justify-center gap-1.5 min-w-[98px] px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-150 cursor-pointer active:scale-95 ${
+                    isCopiedPreviously
+                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100'
+                        : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-2xs shadow-indigo-200'
+                }`;
+                copyBtn.innerHTML = `
+                    <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                    <span>${isCopiedPreviously ? 'Copy lại' : 'Copy'}</span>
+                `;
+
+                // Sự kiện bấm nút Copy từng câu
+                let resetBtnTimer = null;
+                copyBtn.addEventListener('click', async () => {
+                    const ok = await copyTextToClipboard(sentence);
+                    if (!ok) {
+                        showToast('Không thể sao chép, vui lòng thử lại!');
+                        return;
+                    }
+
+                    // Đánh dấu câu này đã copy và lưu vào localStorage
+                    copiedSet.add(index);
+                    updateProgressUI();
+                    saveStateToStorage();
+
+                    // Cập nhật trạng thái thẻ
+                    card.classList.remove('bg-white', 'border-slate-200', 'hover:border-indigo-300');
+                    card.classList.add('bg-emerald-50/50', 'border-emerald-200/90');
+                    numberBadge.className = 'shrink-0 w-6 h-6 rounded-lg text-xs font-bold flex items-center justify-center mt-0.5 bg-emerald-100 text-emerald-700';
+                    textEl.classList.remove('text-slate-800');
+                    textEl.classList.add('text-slate-600');
+                    statusBadge.classList.remove('hidden');
+
+                    // Đổi trạng thái nút sang Xanh lá nổi bật "Đã copy ✓"
+                    copyBtn.className = 'shrink-0 inline-flex items-center justify-center gap-1.5 min-w-[98px] px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-emerald-600 text-white shadow-2xs transition-all duration-150 cursor-pointer';
+                    copyBtn.innerHTML = `
+                        <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                        <span>Đã copy ✓</span>
+                    `;
+
+                    clearTimeout(resetBtnTimer);
+                    resetBtnTimer = setTimeout(() => {
+                        copyBtn.className = 'shrink-0 inline-flex items-center justify-center gap-1.5 min-w-[98px] px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-all duration-150 cursor-pointer active:scale-95';
+                        copyBtn.innerHTML = `
+                            <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                            <span>Copy lại</span>
+                        `;
+                    }, 1800);
+                });
+
+                card.appendChild(leftContent);
+                card.appendChild(copyBtn);
+                fragment.appendChild(card);
+            });
+
+            resultsContainer.appendChild(fragment);
+        }
+
+        // Lắng nghe sự kiện nhập liệu real-time + lưu vào localStorage
+        sourceInput.addEventListener('input', () => {
+            if (sourceInput.value.trim() === '') {
+                copiedSet.clear();
+                clearStorageState();
+            }
+            renderSentences();
+            if (sourceInput.value.trim() !== '') {
+                saveStateToStorage();
+            }
+        });
+
+        // Nút "Xóa tất cả": Xóa văn bản chính, danh sách đã tách và dọn sạch localStorage
+        btnClear.addEventListener('click', () => {
+            sourceInput.value = '';
+            copiedSet.clear();
+            clearStorageState();
+            renderSentences();
+            sourceInput.focus();
+            showToast('Đã xóa toàn bộ dữ liệu');
+        });
+
+        // Nút "Dán" (Paste): Gọi navigator.clipboard.readText(), có fallback focus + hướng dẫn nếu iframe chặn quyền
+        btnPaste.addEventListener('click', async () => {
+            try {
+                if (navigator.clipboard && typeof navigator.clipboard.readText === 'function') {
+                    const clipText = await navigator.clipboard.readText();
+                    if (clipText !== undefined && clipText !== null) {
+                        if (clipText === '') {
+                            sourceInput.focus();
+                            showToast('Bộ nhớ tạm hiện đang trống');
+                            return;
+                        }
+                        sourceInput.value = clipText;
+                        copiedSet.clear();
+                        renderSentences();
+                        saveStateToStorage();
+                        showToast('Đã dán văn bản thành công');
+                        return;
+                    }
+                }
+            } catch (err) {
+                // Trình duyệt hoặc iframe sandbox chặn quyền đọc clipboard trực tiếp
+            }
+
+            // Fallback khi bị chặn quyền đọc clipboard: tự động focus vào ô nhập và hướng dẫn nhẹ nhàng
+            sourceInput.focus();
+            sourceInput.select();
+            showToast('Vui lòng nhấn Ctrl+V (hoặc Cmd+V) để dán', 3200);
+        });
+
+        // Nút "Copy tất cả" (mỗi câu một dòng)
+        btnCopyAll.addEventListener('click', async () => {
+            if (currentSentences.length === 0) return;
+            const joined = currentSentences.join('\n');
+            const ok = await copyTextToClipboard(joined);
+            if (ok) {
+                const origText = btnCopyAllText.textContent;
+                btnCopyAllText.textContent = 'Đã copy tất cả ✓';
+                btnCopyAll.classList.remove('bg-slate-800', 'hover:bg-slate-900');
+                btnCopyAll.classList.add('bg-emerald-600');
+                showToast(`Đã sao chép toàn bộ ${currentSentences.length} câu!`);
+
+                setTimeout(() => {
+                    btnCopyAllText.textContent = origText;
+                    btnCopyAll.classList.remove('bg-emerald-600');
+                    btnCopyAll.classList.add('bg-slate-800', 'hover:bg-slate-900');
+                }, 1800);
+            }
+        });
+
+        // Nút "Bỏ đánh dấu" các câu đã copy
+        btnResetCopied.addEventListener('click', () => {
+            copiedSet.clear();
+            renderSentences();
+            saveStateToStorage();
+            showToast('Đã đặt lại trạng thái đánh dấu');
+        });
+
+        // Lắng nghe thay đổi ở các tùy chọn tách câu trên header
+        splitModeRadios.forEach(radio => {
+            radio.addEventListener('change', () => {
+                copiedSet.clear();
+                renderSentences();
+                saveStateToStorage();
+            });
+        });
+
+        optKeepPeriod.addEventListener('change', () => {
+            renderSentences();
+            saveStateToStorage();
+        });
+
+        // Khởi chạy: Khôi phục trạng thái từ localStorage (nếu có) và render giao diện
+        loadStateFromStorage();
+        renderSentences();
+    </script>
+</body>
+</html>
